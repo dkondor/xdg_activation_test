@@ -14,6 +14,7 @@
 #include <gdk/gdkwayland.h>
 #include <glib/gstdio.h>
 #include <glib-unix.h>
+#include <gtk-layer-shell.h>
 #include <unistd.h>
 
 int pipefd[2];
@@ -112,6 +113,18 @@ static void dialog(GtkButton*, void *data)
 	gtk_widget_show_all(GTK_WIDGET(win));
 }
 
+static void token1_wrap(void*)
+{
+	token1(NULL, NULL);
+}
+
+static void menu_activate(GtkWidget*, void *data)
+{
+	GtkMenu *menu = (GtkMenu*)data;
+	gtk_menu_popdown(menu);
+	g_timeout_add_once(1000, token1_wrap, NULL);
+}
+
 int main(int argc, char **argv)
 {
 	if (pipe(pipefd)) return -1;
@@ -125,6 +138,14 @@ int main(int argc, char **argv)
 		close(pipefd[0]);
 		f_pipe_write = fdopen(pipefd[1], "w");
 		
+		gboolean use_layer_shell = FALSE;
+		int i;
+		for (i = 1; i < argc; i++) if (argv[i][0] == '-' && argv[i][1] == 'l')
+		{
+			use_layer_shell = TRUE;
+			break;
+		}
+		
 		gtk_init(&argc, &argv);
 		
 		// need to create a dummy GAppInfo to give as a parameter to
@@ -134,6 +155,11 @@ int main(int argc, char **argv)
 		dsp = gdk_display_get_default();
 		
 		GtkWidget *win = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+		if (use_layer_shell)
+		{
+			gtk_layer_init_for_window(GTK_WINDOW(win));
+			gtk_layer_set_keyboard_mode(GTK_WINDOW(win), 2);
+		}
 		gtk_window_set_title(GTK_WINDOW(win), "Parent");
 		
 		GtkWidget *lbl = gtk_label_new("Activate child with:");
@@ -146,9 +172,12 @@ int main(int argc, char **argv)
 		GtkWidget *menubutton = gtk_menu_button_new();
 		gtk_button_set_label(GTK_BUTTON(menubutton), "Popup menu");
 		GtkWidget *menu = gtk_menu_new();
-		GtkWidget *item = gtk_menu_item_new_with_label("Activate child");
+		GtkWidget *item = gtk_menu_item_new_with_label("Activate child (immediate)");
 		gtk_widget_show_all (item);
+		GtkWidget *item2 = gtk_menu_item_new_with_label("Activate child (delayed)");
+		gtk_widget_show_all (item2);
 		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item);
+		gtk_menu_shell_append(GTK_MENU_SHELL(menu), item2);
 		gtk_menu_button_set_popup(GTK_MENU_BUTTON(menubutton), menu);
 		
 		g_signal_connect(btn1, "clicked", G_CALLBACK(token1), NULL);
@@ -156,6 +185,7 @@ int main(int argc, char **argv)
 		g_signal_connect(btn3, "clicked", G_CALLBACK(token0), NULL);
 		g_signal_connect(btn4, "clicked", G_CALLBACK(dialog), win);
 		g_signal_connect(item, "activate", G_CALLBACK (token1), NULL);
+		g_signal_connect(item2, "activate", G_CALLBACK (menu_activate), menu);
 		g_signal_connect(win, "destroy", gtk_main_quit, NULL);
 		
 		GtkBox *box = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 10));
