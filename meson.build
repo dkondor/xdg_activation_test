@@ -15,7 +15,10 @@ gtk = dependency('gtk+-3.0')
 gdk = dependency('gdk-3.0')
 layer_shell = dependency('gtk-layer-shell-0')
 
-sources = ['xdgtest.c']
+xdgtest = executable('xdgtest', ['xdgtest.c'], dependencies: [gtk, gdk, layer_shell])
 
-xdgtest = executable('xdgtest', sources, dependencies: [gtk, gdk, layer_shell])
 
+gtk4 = dependency('gtk4')
+layer_shell4 = dependency('gtk4-layer-shell-0')
+
+xdgtest = executable('xdgtest4', ['xdgtest4.c'], dependencies: [gtk4, layer_shell4])
