@@ -118,8 +118,6 @@ static void token1_wrap(void*)
 	token1(NULL, NULL);
 }
 
-
-
 static void menu_activate_immed(GSimpleAction*, GVariant*, gpointer)
 {
 	token1(NULL, NULL);
@@ -128,6 +126,19 @@ static void menu_activate_immed(GSimpleAction*, GVariant*, gpointer)
 static void menu_activate_delayed(GSimpleAction*, GVariant*, gpointer)
 {
 	g_timeout_add_once(1000, token1_wrap, NULL);
+}
+
+static void open_popover(GtkButton*, void *data)
+{
+	GtkPopover *popover = (GtkPopover*)data;
+	gtk_popover_popup(popover);
+}
+
+static void token_popover(GtkButton*, void *data)
+{
+	token1(NULL, NULL);
+	GtkPopover *popover = (GtkPopover*)data;
+	gtk_popover_popdown(popover);
 }
 
 int main(int argc, char **argv)
@@ -172,6 +183,7 @@ int main(int argc, char **argv)
 		GtkWidget *btn2 = gtk_button_new_with_label("Expired token");
 		GtkWidget *btn3 = gtk_button_new_with_label("No token");
 		GtkWidget *btn4 = gtk_button_new_with_label("Show dialog");
+		GtkWidget *btn5 = gtk_button_new_with_label("Show popover");
 		GtkWidget *timeout2 = gtk_spin_button_new_with_range (0.0, 10.0, 0.1);
 		
 		GtkWidget *menubutton = gtk_menu_button_new();
@@ -190,10 +202,13 @@ int main(int argc, char **argv)
 		g_action_map_add_action_entries(G_ACTION_MAP(actions), entries, G_N_ELEMENTS(entries), NULL);
 		gtk_widget_insert_action_group(menubutton, "menu1", G_ACTION_GROUP(actions));
 		
+		GtkWidget *popover = gtk_popover_new();
+		
 		g_signal_connect(btn1, "clicked", G_CALLBACK(token1), NULL);
 		g_signal_connect(btn2, "clicked", G_CALLBACK(token2), NULL);
 		g_signal_connect(btn3, "clicked", G_CALLBACK(token0), NULL);
 		g_signal_connect(btn4, "clicked", G_CALLBACK(dialog), win);
+		g_signal_connect(btn5, "clicked", G_CALLBACK(open_popover), popover);
 		
 		GtkBox *box = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 10));
 		gtk_box_append(box, lbl);
@@ -202,12 +217,23 @@ int main(int argc, char **argv)
 		gtk_box_append(box, btn3);
 		gtk_box_append(box, btn4);
 		gtk_box_append(box, menubutton);
+		gtk_box_append(box, btn5);
 		gtk_box_append(box, gtk_label_new("Delay before activating:"));
 		gtk_box_append(box, timeout2);
 		timeout = GTK_SPIN_BUTTON(timeout2);
 		
 		gtk_window_set_child(win, GTK_WIDGET(box));
 		gtk_window_present(win);
+		
+		// popover contents
+		box = GTK_BOX(gtk_box_new(GTK_ORIENTATION_VERTICAL, 10));
+		gtk_popover_set_child(GTK_POPOVER(popover), GTK_WIDGET(box));
+		GtkWidget *lblp1 = gtk_label_new("Custom popover");
+		GtkWidget *btnp1 = gtk_button_new_with_label("Activate child");
+		gtk_box_append(box, lblp1);
+		gtk_box_append(box, btnp1);
+		g_signal_connect(btnp1, "clicked", G_CALLBACK(token_popover), popover);
+		gtk_widget_set_parent(popover, btn5);
 		
 		while (g_list_model_get_n_items(gtk_window_get_toplevels()) > 0)
 			g_main_context_iteration(NULL, TRUE);
